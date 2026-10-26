@@ -207,10 +207,14 @@ describe("runDeploy outputs", () => {
   it("rejects when the outputs cannot be written, after stopping the stream", async () => {
     deployed({ db: { host: output("db.example.com") } });
 
+    // Handled up front, so a dropped promise fails the assertion instead of crashing the test run.
+    const write = Promise.reject(new Error("disk full"));
+    write.catch(() => {});
+
     await expect(
       runDeploy({
         ...baseConfig,
-        onOutputsRetrieved: () => Promise.reject(new Error("disk full")),
+        onOutputsRetrieved: () => write,
       } as any),
     ).rejects.toThrow("External Error: Failed to write outputs: disk full");
 

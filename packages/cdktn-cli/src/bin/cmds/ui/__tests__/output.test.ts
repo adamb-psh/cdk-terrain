@@ -98,10 +98,14 @@ describe("runOutput", () => {
       },
     });
 
+    // Handled up front, so a dropped promise fails the assertion instead of crashing the test run.
+    const write = Promise.reject(new Error("disk full"));
+    write.catch(() => {});
+
     await expect(
       runOutput({
         ...baseConfig,
-        onOutputsRetrieved: () => Promise.reject(new Error("disk full")),
+        onOutputsRetrieved: () => write,
       }),
     ).rejects.toThrow("External Error: Failed to write outputs: disk full");
 
