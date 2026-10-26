@@ -104,6 +104,13 @@ describe("TypeExpr rendering", () => {
       ),
       'list(object({a = string, inner = optional(object({x = optional(number, 2), tags = optional(map(string), {"env" = "dev"})}), {})}))',
     ],
+    ["empty object", TypeExpr.object({}), "object({})"],
+    ["empty tuple", TypeExpr.tuple([]), "tuple([])"],
+    [
+      "optional with a null default",
+      TypeExpr.object({ a: TypeExpr.optional(TypeExpr.STRING, null) }),
+      "object({a = optional(string, null)})",
+    ],
     [
       "fromString",
       TypeExpr.fromString("map(list(number))"),
@@ -261,7 +268,9 @@ describe("TypeExpr rendering", () => {
 
 describe("TypeExpr.object attribute names", () => {
   test.each(["a", "_a", "a1", "a_b", "a-b", "A"])("accepts %s", (name) => {
-    expect(() => TypeExpr.object({ [name]: TypeExpr.STRING })).not.toThrow();
+    expect(
+      renderVariableType(TypeExpr.object({ [name]: TypeExpr.STRING })),
+    ).toBe(`object({${name} = string})`);
   });
 
   test.each(["", "1a", "-a", "a b", "a.b", 'a"', "a=b", "${a}"])(
@@ -275,52 +284,32 @@ describe("TypeExpr.object attribute names", () => {
 });
 
 describe("Fn.convert", () => {
-  test("synthesizes the type as a bare type expression", () => {
+  test("renders inside another function call", () => {
     const app = Testing.app();
     const stack = new TerraformStack(app, "test");
-    const items = new TerraformVariable(stack, "items", {
-      type: TypeExpr.ANY.toString(),
-    });
-    const item = TypeExpr.object({
-      a: TypeExpr.STRING,
-      b: TypeExpr.optional(TypeExpr.NUMBER, 1),
-      tags: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), {}),
-    });
-    new TerraformOutput(stack, "items_out", {
-      value: Fn.convert(items.value, TypeExpr.list(item)),
-    });
+    const items = new TerraformVariable(stack, "items", {});
     new TerraformOutput(stack, "nested", {
       value: Fn.lengthOf(
         Fn.convert(items.value, TypeExpr.set(TypeExpr.STRING)),
       ),
     });
+    expect(JSON.parse(Testing.synth(stack)).output.nested.value).toBe(
+      "${length(convert(var.items, set(string)))}",
+    );
+  });
+
+  test("renders a literal value argument", () => {
+    const app = Testing.app();
+    const stack = new TerraformStack(app, "test");
     new TerraformOutput(stack, "literal", {
       value: Fn.convert(
         ["a", 1],
         TypeExpr.tuple([TypeExpr.STRING, TypeExpr.STRING]),
       ),
     });
-
-    expect(Testing.synth(stack)).toMatchInlineSnapshot(`
-     "{
-       "output": {
-         "items_out": {
-           "value": "\${convert(var.items, list(object({a = string, b = optional(number, 1), tags = optional(map(string), {})})))}"
-         },
-         "literal": {
-           "value": "\${convert([\\"a\\", 1], tuple([string, string]))}"
-         },
-         "nested": {
-           "value": "\${length(convert(var.items, set(string)))}"
-         }
-       },
-       "variable": {
-         "items": {
-           "type": "any"
-         }
-       }
-     }"
-    `);
+    expect(JSON.parse(Testing.synth(stack)).output.literal.value).toBe(
+      '${convert(["a", 1], tuple([string, string]))}',
+    );
   });
 
   test("rejects a type that is not a TypeExpr", () => {
@@ -336,5 +325,21 @@ describe("Fn.convert", () => {
     expect(() => Fn.convert("1", TypeExpr.optional(TypeExpr.STRING))).toThrow(
       "Fn.convert(): TypeExpr.optional() is only valid as an attribute type inside TypeExpr.object()",
     );
+  });
+});
+
+describe("TypeExpr.isTypeExpr", () => {
+  test.each([
+    ["a TypeExpr", TypeExpr.list(TypeExpr.STRING), true],
+    [
+      "an object carrying the TypeExpr brand (e.g. from another copy of the library)",
+      { [Symbol.for("cdktn/TypeExpr")]: true },
+      true,
+    ],
+    ["a plain object", {}, false],
+    ["null", null, false],
+    ["a type string", "list(string)", false],
+  ])("%s -> %p", (_name, value, expected) => {
+    expect(TypeExpr.isTypeExpr(value)).toBe(expected);
   });
 });
