@@ -130,6 +130,8 @@ describe("presentOutputs writing the outputs file", () => {
   it.each([
     ["ENOENT", "Usage"],
     ["ENOTDIR", "Usage"],
+    ["EISDIR", "Usage"],
+    ["ENAMETOOLONG", "Usage"],
     ["EACCES", "External"],
   ])("rejects a write failing with %s as a %s error", async (code, type) => {
     const cause = failure(code);

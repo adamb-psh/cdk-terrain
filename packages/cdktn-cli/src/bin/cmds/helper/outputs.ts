@@ -4,11 +4,13 @@ import { Errors } from "@cdktn/commons";
 import { NestedTerraformOutputs } from "@cdktn/cli-core";
 import { renderOutputs } from "./format";
 
-// A path that does not exist is the user's mistake; any other write failure is outside the CLI's control.
+// A path that cannot name a file is the user's mistake; any other write failure is outside the CLI's control.
+const usageErrorCodes = ["ENOENT", "ENOTDIR", "EISDIR", "ENAMETOOLONG"];
+
 function outputsWriteError(e: unknown): Error {
   const code = (e as NodeJS.ErrnoException | undefined)?.code;
   const typed =
-    code === "ENOENT" || code === "ENOTDIR" ? Errors.Usage : Errors.External;
+    code && usageErrorCodes.includes(code) ? Errors.Usage : Errors.External;
   return typed(
     `Failed to write outputs: ${e instanceof Error ? e.message : e}`,
     e instanceof Error ? e : undefined,
