@@ -9,6 +9,7 @@ import {
   TypeExpr,
 } from "../src";
 import { toBeValidTerraform } from "../src/testing/matchers";
+import { testIfConvertSupported } from "./helper/capabilities";
 
 /** Synthesizes `convert(var.input, <type>)` and returns the output's value. */
 function renderConvert(targetType: TypeExpr): string {
@@ -27,6 +28,24 @@ function renderVariableType(targetType: TypeExpr): string {
   const stack = new TerraformStack(app, "test");
   new TerraformVariable(stack, "input", { type: targetType.toString() });
   return JSON.parse(Testing.synth(stack)).variable.input.type;
+}
+
+/**
+ * Runs `init` + `validate` with the matchers' CLI (TERRAFORM_BINARY_NAME) and
+ * fails with the CLI's output if the synthesized stack is not valid.
+ */
+function expectValidForCli(stackDir: string) {
+  const { pass, message } = toBeValidTerraform(stackDir);
+  expect({ pass, message }).toMatchObject({ pass: true });
+}
+
+/** An object type whose string defaults need every kind of escaping. */
+function trickyItem(): TypeExpr {
+  const tricky = 'say "hi" \\ C:\\dir\\ ${x} %{if}';
+  return TypeExpr.object({
+    a: TypeExpr.optional(TypeExpr.STRING, tricky),
+    m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), { k: tricky }),
+  });
 }
 
 describe("TypeExpr rendering", () => {
@@ -152,26 +171,35 @@ describe("TypeExpr rendering", () => {
     );
   });
 
-  test("string defaults with quotes, backslashes and ${ are valid for the CLI", () => {
-    const tricky = 'say "hi" \\ C:\\dir\\ ${x} %{if}';
-    const item = TypeExpr.object({
-      a: TypeExpr.optional(TypeExpr.STRING, tricky),
-      m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), { k: tricky }),
-    });
-    const app = Testing.app({
-      context: {
-        targetVersions: { terraform: ">=1.15.0", opentofu: ">=1.13.0" },
-      },
-    });
+  // optional() defaults in variable types work on every supported CLI
+  // (Terraform >= 1.3, OpenTofu >= 1.6), so this runs against any binary.
+  test("string defaults with quotes, backslashes and ${ are valid in a variable type", () => {
+    const app = Testing.app();
     const stack = new TerraformStack(app, "test");
-    new TerraformVariable(stack, "cfg", { type: item.toString(), default: {} });
-    new TerraformOutput(stack, "out", { value: Fn.convert({}, item) });
+    new TerraformVariable(stack, "cfg", {
+      type: trickyItem().toString(),
+      default: {},
+    });
 
-    const result = toBeValidTerraform(Testing.fullSynth(stack));
-    expect(result.message).toBe(
-      "Expected subject not to be a valid terraform stack",
-    );
+    expectValidForCli(Testing.fullSynth(stack));
   });
+
+  testIfConvertSupported(
+    "string defaults with quotes, backslashes and ${ are valid inside Fn.convert",
+    () => {
+      const app = Testing.app({
+        context: {
+          targetVersions: { terraform: ">=1.15.0", opentofu: ">=1.13.0" },
+        },
+      });
+      const stack = new TerraformStack(app, "test");
+      new TerraformOutput(stack, "out", {
+        value: Fn.convert({}, trickyItem()),
+      });
+
+      expectValidForCli(Testing.fullSynth(stack));
+    },
+  );
 
   test("renders unquoted and without ${} as a variable type", () => {
     expect(
