@@ -206,6 +206,7 @@ describe("runDeploy outputs", () => {
     const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
     deployed(
       getConstructIdsForOutputs(
+        "app",
         {
           "//": {
             outputs: {

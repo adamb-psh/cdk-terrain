@@ -215,6 +215,7 @@ const isObjectEmpty = (obj: Record<string, any>): boolean => {
 };
 
 export const getConstructIdsForOutputs = (
+  stackName: string,
   stackContent: Record<string, any>,
   outputs: { [key: string]: TerraformOutput },
 ): NestedTerraformOutputs => {
@@ -226,19 +227,23 @@ export const getConstructIdsForOutputs = (
 
   const omitted: string[] = [];
 
-  const mapOutputs = (value: OutputIdMap): NestedTerraformOutputs => {
+  const mapOutputs = (
+    value: OutputIdMap,
+    path: string[] = [],
+  ): NestedTerraformOutputs => {
     return Object.entries(value).reduce((acc, [key, value]) => {
       if (typeof value === "string") {
         const resolved = outputs[value];
         // The state can lag behind the synthesized stack, so a declared output may be absent.
         if (resolved === undefined || resolved === null) {
-          omitted.push(value);
+          // The construct path is what the user wrote; the terraform name is what is missing from state.
+          omitted.push(`${[...path, key].join("/")} (${value})`);
           return acc;
         }
         return { ...acc, [key]: resolved };
       }
 
-      const mapped = mapOutputs(value);
+      const mapped = mapOutputs(value, [...path, key]);
       if (isObjectEmpty(mapped)) {
         return acc;
       }
@@ -254,8 +259,8 @@ export const getConstructIdsForOutputs = (
   if (omitted.length > 0) {
     logger.warn(
       omitted.length === 1
-        ? `1 output declared by the stack was not returned by terraform and is omitted: ${omitted[0]}`
-        : `${omitted.length} outputs declared by the stack were not returned by terraform and are omitted: ${omitted.join(", ")}`,
+        ? `1 output declared by stack "${stackName}" was not returned by terraform and is omitted: ${omitted[0]}`
+        : `${omitted.length} outputs declared by stack "${stackName}" were not returned by terraform and are omitted: ${omitted.join(", ")}`,
     );
   }
   return mapped;

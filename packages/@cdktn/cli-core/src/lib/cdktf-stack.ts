@@ -534,6 +534,7 @@ new SomeResource(...).importFrom("some_id")
       if (!cancelled) {
         const outputs = await terraform.output();
         const outputsByConstructId = getConstructIdsForOutputs(
+          this.stack.name,
           JSON.parse(this.stack.content),
           outputs,
         );
@@ -629,6 +630,7 @@ new SomeResource(...).importFrom("some_id")
 
       const outputs = await terraform.output();
       const outputsByConstructId = getConstructIdsForOutputs(
+        this.stack.name,
         JSON.parse(this.stack.content),
         outputs,
       );
