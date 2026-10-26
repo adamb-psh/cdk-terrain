@@ -102,8 +102,12 @@ describe("presentOutputs", () => {
 
 describe("presentOutputs writing the outputs file", () => {
   const writtenTo = "The outputs have been written to /tmp/out.json";
-  const failure = (code: string) =>
-    Object.assign(new Error(`${code}: cannot write '/tmp/out.json'`), { code });
+  const failure = (code: string | undefined) =>
+    code === undefined
+      ? new Error("cannot write '/tmp/out.json'")
+      : Object.assign(new Error(`${code}: cannot write '/tmp/out.json'`), {
+          code,
+        });
 
   // Handled up front, so a caller that drops the promise fails an assertion instead of crashing the test run.
   const handled = (write: Promise<void>) => {
@@ -133,6 +137,7 @@ describe("presentOutputs writing the outputs file", () => {
     ["EISDIR", "Usage"],
     ["ENAMETOOLONG", "Usage"],
     ["EACCES", "External"],
+    [undefined, "External"],
   ])("rejects a write failing with %s as a %s error", async (code, type) => {
     const cause = failure(code);
 

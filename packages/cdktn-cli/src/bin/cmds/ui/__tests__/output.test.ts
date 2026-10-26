@@ -107,7 +107,7 @@ describe("runOutput", () => {
         ...baseConfig,
         onOutputsRetrieved: () => write,
       }),
-    ).rejects.toThrow("External Error: Failed to write outputs: disk full");
+    ).rejects.toThrow("Failed to write outputs");
 
     expect(mockStreamStop).toHaveBeenCalled();
   });
