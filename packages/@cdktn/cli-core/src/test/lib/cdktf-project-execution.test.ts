@@ -1,5 +1,6 @@
 // Copyright (c) HashiCorp, Inc
 // SPDX-License-Identifier: MPL-2.0
+import { logger } from "@cdktn/commons";
 import { CdktfProject } from "../../lib/cdktf-project";
 import { CdktfStack } from "../../lib/cdktf-stack";
 import { SynthesizedStack } from "../../lib/synth-stack";
@@ -108,4 +109,31 @@ describe("CdktfProject running several stacks", () => {
       },
     );
   });
+
+  // Terraform returns no outputs, so the output the stack declares is missing from state.
+  it.each(["deploy", "fetchOutputs"] as const)(
+    "names the stack and the missing output when %s finds a declared output absent from state",
+    async (method) => {
+      const warn = jest.spyOn(logger, "warn").mockImplementation(() => {});
+      const web = synthesized("web");
+      web.content = JSON.stringify({
+        "//": { metadata: {}, outputs: { web: { site: { url: "site_url" } } } },
+      });
+      const project = projectWith([web]);
+
+      await (method === "deploy"
+        ? project.deploy({
+            skipSynth: true,
+            autoApprove: true,
+            stackNames: ["web"],
+          })
+        : project.fetchOutputs({ skipSynth: true, stackNames: ["web"] }));
+
+      expect(warn.mock.calls).toEqual([
+        [
+          '1 output declared by stack "web" was not returned by terraform and is omitted: web/site/url (site_url)',
+        ],
+      ]);
+    },
+  );
 });
