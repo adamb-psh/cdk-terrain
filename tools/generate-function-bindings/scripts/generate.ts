@@ -278,7 +278,10 @@ function mapParameter(p: Parameter) {
         docstringType: "any",
       };
     }
-    if (type === "dynamic") {
+    // "type" is a type-constraint parameter (e.g. the second argument of
+    // convert). It is not part of AttributeType, but OpenTofu-sourced
+    // signatures may use it, so map it to anyValue instead of throwing.
+    if (type === "dynamic" || (type as string) === "type") {
       return {
         mapper: "anyValue",
         tsType: t.tsAnyKeyword(),
