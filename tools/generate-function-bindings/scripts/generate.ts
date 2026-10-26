@@ -88,6 +88,14 @@ const INTERNAL_METHODS = ["join", "bcrypt", "range", "lookup", "convert"];
 const openTofuOnlyFunctions = new Set<string>();
 
 /**
+ * The OpenTofu docs page of an OpenTofu-only function. The assume* functions
+ * are documented together on a single page.
+ */
+function openTofuDocsPage(name: string): string {
+  return name.startsWith("assume") ? "assume_family/" : name;
+}
+
+/**
  * Loads the function signatures from functions.json (Terraform metadata) and
  * merges in OpenTofu-only functions from the availability matrix so the
  * bindings cover both products. `core::` namespaced aliases (terraform >= 1.8)
@@ -381,12 +389,20 @@ function renderStaticMethod(
 
   // comment with docstring for method
   const docsUrl = openTofuOnlyFunctions.has(name)
-    ? `https://opentofu.org/docs/language/functions/${name}`
+    ? `https://opentofu.org/docs/language/functions/${openTofuDocsPage(name)}`
     : `https://developer.hashicorp.com/terraform/language/functions/${name}`;
-  const descriptionWithLink = signature.description.replace(
-    `\`${name}\``,
-    `{@link ${docsUrl} ${name}}`,
-  );
+  const link = `{@link ${docsUrl} ${name}}`;
+  const description = signature.description;
+  let descriptionWithLink: string;
+  if (description.includes(`\`${name}\``)) {
+    descriptionWithLink = description.replace(`\`${name}\``, link);
+  } else if (/^`[a-z_]+`/.test(description)) {
+    // some upstream descriptions start with the wrong function name (e.g. the
+    // OpenTofu assumemaplengthmin one says `assummaplengthmin`)
+    descriptionWithLink = description.replace(/^`[a-z_]+`/, link);
+  } else {
+    descriptionWithLink = `${link}: ${description}`;
+  }
   t.addComment(
     method,
     "leading",

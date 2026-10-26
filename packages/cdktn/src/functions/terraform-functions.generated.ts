@@ -49,7 +49,7 @@ export class FnGenerated {
     return asBoolean(terraformFunction("anytrue", [listOf(anyValue)])(list));
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumeequal assumeequal} returns the second argument if it is equal to the first argument, or raises an error otherwise.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumeequal} returns the second argument if it is equal to the first argument, or raises an error otherwise.
    * @param {any} actual_value
    * @param {any} expected_value
    */
@@ -62,7 +62,7 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumelistlength assumelistlength} returns the given list only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumelistlength} returns the given list only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} min_length
    * @param {number} max_length
@@ -81,7 +81,7 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumelistlengthmax assumelistlengthmax} returns the given list only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumelistlengthmax} returns the given list only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} max_length
    */
@@ -94,7 +94,7 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumelistlengthmin assumelistlengthmin} returns the given list only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumelistlengthmin} returns the given list only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} min_length
    */
@@ -107,7 +107,7 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumemaplength assumemaplength} returns the given map only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumemaplength} returns the given map only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Object<string, any>} value
    * @param {number} min_length
    * @param {number} max_length
@@ -122,7 +122,7 @@ export class FnGenerated {
     );
   }
   /**
-   * `assumelistlengthmax` returns the given map only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumemaplengthmax} returns the given map only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Object<string, any>} value
    * @param {number} max_length
    */
@@ -135,7 +135,7 @@ export class FnGenerated {
     );
   }
   /**
-   * `assummaplengthmin` returns the given map only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumemaplengthmin} returns the given map only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Object<string, any>} value
    * @param {number} min_length
    */
@@ -148,14 +148,14 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumenotnull assumenotnull} returns the given value only if it isn't null, and then tells OpenTofu to assume the result isn't null for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumenotnull} returns the given value only if it isn't null, and then tells OpenTofu to assume the result isn't null for subsequent analysis.
    * @param {any} value
    */
   static assumenotnull(value: any) {
     return asAny(terraformFunction("assumenotnull", [anyValue])(value));
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumesetlength assumesetlength} returns the given set only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumesetlength} returns the given set only if its length is in the given bounds, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} min_length
    * @param {number} max_length
@@ -170,7 +170,7 @@ export class FnGenerated {
     );
   }
   /**
-   * `assumesetlength` returns the given set only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumesetlengthmax} returns the given set only if it is at most as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} max_length
    */
@@ -183,7 +183,7 @@ export class FnGenerated {
     );
   }
   /**
-   * `assumesetlength` returns the given set only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumesetlengthmin} returns the given set only if it is at least as long as specified, and then tells OpenTofu to assume the result has such a length for subsequent analysis.
    * @param {Array<any>} value
    * @param {number} min_length
    */
@@ -196,7 +196,7 @@ export class FnGenerated {
     );
   }
   /**
-   * {@link https://opentofu.org/docs/language/functions/assumestringprefix assumestringprefix} returns the given string only if it has the given prefix, and then tells OpenTofu to assume the result has that prefix for subsequent analysis.
+   * {@link https://opentofu.org/docs/language/functions/assume_family/ assumestringprefix} returns the given string only if it has the given prefix, and then tells OpenTofu to assume the result has that prefix for subsequent analysis.
    * @param {string} value
    * @param {string} prefix
    */
