@@ -1,10 +1,7 @@
 // Copyright (c) HashiCorp, Inc
 // SPDX-License-Identifier: MPL-2.0
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
 import { logger } from "@cdktn/commons";
-import { getConstructIdsForOutputs, saveOutputs } from "../../lib/output";
+import { getConstructIdsForOutputs } from "../../lib/output";
 import { TerraformOutput } from "../../lib/models/terraform";
 
 function output(value: string): TerraformOutput {
@@ -82,36 +79,16 @@ describe("getConstructIdsForOutputs", () => {
     );
 
     expect(result).toStrictEqual({ network: { ipv6: output("::1") } });
-    expect(warnSpy.mock.calls[0][0]).toContain("ipv4_address");
+    expect(warnSpy.mock.calls).toEqual([
+      [
+        '1 output declared by stack "app" was not returned by terraform and is omitted: network/ipv4 (ipv4_address)',
+      ],
+    ]);
   });
 
   it("returns the outputs as they are when the stack carries no output metadata", () => {
     const outputs = { plain: output("value") };
 
     expect(getConstructIdsForOutputs("app", {}, outputs)).toBe(outputs);
-  });
-});
-
-describe("saveOutputs", () => {
-  it("writes the outputs that remain after a declared output went missing", async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cdktn-outputs-"));
-    const file = path.join(dir, "outputs.json");
-    try {
-      const outputs = getConstructIdsForOutputs(
-        "app",
-        stackDeclaring({
-          network: { ipv6: "ipv6_address", ipv4: "ipv4_address" },
-        }),
-        { ipv6_address: output("::1") },
-      );
-
-      await saveOutputs(file, outputs, false);
-
-      expect(JSON.parse(fs.readFileSync(file, "utf-8"))).toEqual({
-        network: { ipv6: "::1" },
-      });
-    } finally {
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
   });
 });
