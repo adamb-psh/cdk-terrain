@@ -17,8 +17,8 @@ const ATTRIBUTE_NAME = /^[_a-zA-Z][_a-zA-Z0-9-]*$/;
  *
  * Object attribute names must be valid identifiers (letters, digits, `_` and
  * `-`, not starting with a digit or `-`). String defaults of
- * `TypeExpr.optional()` are escaped like other function arguments (`${` is
- * escaped to `$${`), and double quotes must be pre-escaped as `\"`.
+ * `TypeExpr.optional()` are always rendered as valid HCL string literals:
+ * `"`, `\`, `${` and `%{` are escaped, while references are kept as is.
  * `TypeExpr.fromString()` is emitted verbatim, without any validation.
  */
 export class TypeExpr implements IResolvable {

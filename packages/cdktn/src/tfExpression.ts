@@ -618,6 +618,35 @@ export type TypeConstraintSpec =
     }
   | { kind: "raw"; expr: string };
 
+/**
+ * Escapes `\\`, `"` and `%{` in the literal strings of an optional() default
+ * (recursing into plain lists and objects), so a default always renders as a
+ * valid HCL string literal. `${` is escaped later by resolveArg. Token markers
+ * contain none of these characters, and the values of tokens and references
+ * are substituted after this step, so they are never double-escaped.
+ */
+function escapeDefaultLiterals(value: any): any {
+  if (typeof value === "string") {
+    return value
+      .replace(/\\/g, () => "\\\\")
+      .replace(/"/g, () => '\\"')
+      .replace(/%\{/g, () => "%%{");
+  }
+  if (Array.isArray(value)) {
+    return value.map(escapeDefaultLiterals);
+  }
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, escapeDefaultLiterals(v)]),
+    );
+  }
+  return value;
+}
+
 // eslint-disable-next-line jsdoc/require-jsdoc
 class TypeConstraintExpression extends TFExpression {
   constructor(private readonly spec: TypeConstraintSpec) {
@@ -651,7 +680,7 @@ class TypeConstraintExpression extends TFExpression {
           .join(", ")}})`;
       case "optional":
         return spec.hasDefault
-          ? `optional(${this.render(context, spec.type)}, ${this.resolveArg(context, spec.defaultValue)})`
+          ? `optional(${this.render(context, spec.type)}, ${this.resolveArg(context, escapeDefaultLiterals(spec.defaultValue))})`
           : `optional(${this.render(context, spec.type)})`;
     }
   }

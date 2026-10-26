@@ -8,6 +8,7 @@ import {
   Fn,
   TypeExpr,
 } from "../src";
+import { toBeValidTerraform } from "../src/testing/matchers";
 
 /** Synthesizes `convert(var.input, <type>)` and returns the output's value. */
 function renderConvert(targetType: TypeExpr): string {
@@ -102,12 +103,74 @@ describe("TypeExpr rendering", () => {
     ).toBe('${convert(var.input, object({c = optional(string, "d$${x}")}))}');
   });
 
-  test("passes pre-escaped double quotes in string defaults through, like other function arguments", () => {
+  test.each([
+    ["double quotes", 'say "hi"', '"say \\"hi\\""'],
+    ["backslashes", "C:\\dir\\", '"C:\\\\dir\\\\"'],
+    ["interpolation sequences", "d${x}", '"d$${x}"'],
+    ["template directives", "%{if}", '"%%{if}"'],
+    ["a leading and trailing quote", '"q"', '"\\"q\\""'],
+  ])("escapes %s in string defaults", (_name, defaultValue, expected) => {
     expect(
       renderConvert(
-        TypeExpr.object({ c: TypeExpr.optional(TypeExpr.STRING, 'a\\"b') }),
+        TypeExpr.object({
+          c: TypeExpr.optional(TypeExpr.STRING, defaultValue),
+        }),
       ),
-    ).toBe('${convert(var.input, object({c = optional(string, "a\\"b")}))}');
+    ).toBe(
+      `\${convert(var.input, object({c = optional(string, ${expected})}))}`,
+    );
+  });
+
+  test("escapes strings nested in list and map defaults", () => {
+    expect(
+      renderConvert(
+        TypeExpr.object({
+          l: TypeExpr.optional(TypeExpr.list(TypeExpr.STRING), ['a"b']),
+          m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), { k: "\\" }),
+        }),
+      ),
+    ).toBe(
+      '${convert(var.input, object({l = optional(list(string), ["a\\"b"]), m = optional(map(string), {"k" = "\\\\"})}))}',
+    );
+  });
+
+  test("does not escape references in defaults", () => {
+    const app = Testing.app();
+    const stack = new TerraformStack(app, "test");
+    const fallback = new TerraformVariable(stack, "fallback", {});
+    const input = new TerraformVariable(stack, "input", {});
+    new TerraformOutput(stack, "out", {
+      value: Fn.convert(
+        input.value,
+        TypeExpr.object({
+          c: TypeExpr.optional(TypeExpr.STRING, fallback.stringValue),
+        }),
+      ),
+    });
+    expect(JSON.parse(Testing.synth(stack)).output.out.value).toBe(
+      "${convert(var.input, object({c = optional(string, var.fallback)}))}",
+    );
+  });
+
+  test("string defaults with quotes, backslashes and ${ are valid for the CLI", () => {
+    const tricky = 'say "hi" \\ C:\\dir\\ ${x} %{if}';
+    const item = TypeExpr.object({
+      a: TypeExpr.optional(TypeExpr.STRING, tricky),
+      m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), { k: tricky }),
+    });
+    const app = Testing.app({
+      context: {
+        targetVersions: { terraform: ">=1.15.0", opentofu: ">=1.13.0" },
+      },
+    });
+    const stack = new TerraformStack(app, "test");
+    new TerraformVariable(stack, "cfg", { type: item.toString(), default: {} });
+    new TerraformOutput(stack, "out", { value: Fn.convert({}, item) });
+
+    const result = toBeValidTerraform(Testing.fullSynth(stack));
+    expect(result.message).toBe(
+      "Expected subject not to be a valid terraform stack",
+    );
   });
 
   test("renders unquoted and without ${} as a variable type", () => {

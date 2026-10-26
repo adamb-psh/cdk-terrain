@@ -28,9 +28,11 @@ export class Fn extends FnGenerated {
    * Optional object attributes and their defaults are applied as in a variable `type`:
    * `Fn.convert(v, TypeExpr.list(TypeExpr.object({ a: TypeExpr.STRING, b: TypeExpr.optional(TypeExpr.NUMBER, 1) })))`.
    *
-   * Terraform and OpenTofu differ when the conversion can only be checked once a value is known:
-   * Terraform plans the result as `(known after apply)` and fails at apply time if the value
-   * does not conform, whereas OpenTofu already fails at `validate`.
+   * Terraform and OpenTofu differ for values that are unknown during plan (e.g. computed attributes)
+   * whose type cannot be converted (e.g. a string to an object): Terraform plans the result as
+   * `(known after apply)` and only fails at apply, whereas OpenTofu already fails at plan.
+   * Neither catches it at `validate`. If only the value cannot be converted (e.g. a non-numeric
+   * string to a number), both fail at apply.
    * @param {any} value
    * @param {TypeExpr} targetType a TypeExpr (anything else throws); `TypeExpr.optional()` is not allowed at the top level
    */
