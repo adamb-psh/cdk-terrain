@@ -44,7 +44,10 @@ function trickyItem(): TypeExpr {
   const tricky = 'say "hi" \\ C:\\dir\\ ${x} %{if}';
   return TypeExpr.object({
     a: TypeExpr.optional(TypeExpr.STRING, tricky),
-    m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), { k: tricky }),
+    m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), {
+      k: tricky,
+      [tricky]: "v",
+    }),
   });
 }
 
@@ -153,6 +156,22 @@ describe("TypeExpr rendering", () => {
     );
   });
 
+  test.each([
+    ["double quotes", { 'a"b': "v" }, '{"a\\"b" = "v"}'],
+    ["interpolation sequences", { "${k}": "v" }, '{"$${k}" = "v"}'],
+    ["backslashes", { "a\\b": "v" }, '{"a\\\\b" = "v"}'],
+  ])("escapes %s in map default keys", (_name, defaultValue, expected) => {
+    expect(
+      renderConvert(
+        TypeExpr.object({
+          m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), defaultValue),
+        }),
+      ),
+    ).toBe(
+      `\${convert(var.input, object({m = optional(map(string), ${expected})}))}`,
+    );
+  });
+
   test("does not escape references in defaults", () => {
     const app = Testing.app();
     const stack = new TerraformStack(app, "test");
@@ -216,6 +235,21 @@ describe("TypeExpr rendering", () => {
     expect(() =>
       renderVariableType(TypeExpr.optional(TypeExpr.STRING)),
     ).toThrow("TypeExpr.optional() is only valid inside TypeExpr.object()");
+  });
+
+  test.each([
+    ["list", () => TypeExpr.list(TypeExpr.optional(TypeExpr.STRING))],
+    ["set", () => TypeExpr.set(TypeExpr.optional(TypeExpr.STRING))],
+    ["map", () => TypeExpr.map(TypeExpr.optional(TypeExpr.STRING))],
+    [
+      "tuple",
+      () =>
+        TypeExpr.tuple([TypeExpr.STRING, TypeExpr.optional(TypeExpr.STRING)]),
+    ],
+  ])("rejects an optional() element in %s()", (ctor, build) => {
+    expect(build).toThrow(
+      `TypeExpr.${ctor}(): TypeExpr.optional() is only valid as an attribute type inside TypeExpr.object()`,
+    );
   });
 
   test("rejects an optional() wrapping another optional()", () => {

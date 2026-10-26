@@ -41,12 +41,22 @@ export class TypeExpr implements IResolvable {
     return x !== null && typeof x === "object" && TYPE_EXPR_SYMBOL in x;
   }
 
+  /** Rejects optional() anywhere but as an attribute type of object(). */
+  private static element(ctor: string, element: TypeExpr): TypeConstraintSpec {
+    if (element.spec.kind === "optional") {
+      throw new Error(
+        `TypeExpr.${ctor}(): TypeExpr.optional() is only valid as an attribute type inside TypeExpr.object()`,
+      );
+    }
+    return element.spec;
+  }
+
   /** `list(<element>)` */
   public static list(element: TypeExpr): TypeExpr {
     return new TypeExpr({
       kind: "collection",
       ctor: "list",
-      element: element.spec,
+      element: TypeExpr.element("list", element),
     });
   }
   /** `set(<element>)` */
@@ -54,7 +64,7 @@ export class TypeExpr implements IResolvable {
     return new TypeExpr({
       kind: "collection",
       ctor: "set",
-      element: element.spec,
+      element: TypeExpr.element("set", element),
     });
   }
   /** `map(<element>)` */
@@ -62,14 +72,14 @@ export class TypeExpr implements IResolvable {
     return new TypeExpr({
       kind: "collection",
       ctor: "map",
-      element: element.spec,
+      element: TypeExpr.element("map", element),
     });
   }
   /** `tuple([<e1>, <e2>, ...])` */
   public static tuple(elements: TypeExpr[]): TypeExpr {
     return new TypeExpr({
       kind: "tuple",
-      elements: elements.map((e) => e.spec),
+      elements: elements.map((e) => TypeExpr.element("tuple", e)),
     });
   }
   /** `object({<name> = <type>, ...})`; wrap attribute types in `TypeExpr.optional()` to make them optional. */
@@ -103,7 +113,11 @@ export class TypeExpr implements IResolvable {
       defaultValue,
     });
   }
-  /** Escape hatch: a type expression written by hand, emitted verbatim (unquoted). */
+  /**
+   * Escape hatch: a type expression written by hand, emitted verbatim
+   * (unquoted). It is not parsed or validated; an invalid expression only
+   * fails once Terraform/OpenTofu reads the configuration.
+   */
   public static fromString(expr: string): TypeExpr {
     return new TypeExpr({ kind: "raw", expr });
   }

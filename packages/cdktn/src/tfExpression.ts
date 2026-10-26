@@ -620,8 +620,9 @@ export type TypeConstraintSpec =
 
 /**
  * Escapes `\\`, `"` and `%{` in the literal strings of an optional() default
- * (recursing into plain lists and objects), so a default always renders as a
- * valid HCL string literal. `${` is escaped later by resolveArg. Token markers
+ * (recursing into plain lists and objects, including their keys), so a
+ * default always renders as valid HCL. `${` in values is escaped later by
+ * resolveArg; in keys it is escaped here. Token markers
  * contain none of these characters, and the values of tokens and references
  * are substituted after this step, so they are never double-escaped.
  */
@@ -640,8 +641,15 @@ function escapeDefaultLiterals(value: any): any {
     typeof value === "object" &&
     Object.getPrototypeOf(value) === Object.prototype
   ) {
+    // object keys are emitted as `"<key>" = ...` without any escaping, so
+    // `${` has to be escaped here as well (but not in a token key)
     return Object.fromEntries(
-      Object.entries(value).map(([k, v]) => [k, escapeDefaultLiterals(v)]),
+      Object.entries(value).map(([k, v]) => [
+        Token.isUnresolved(k)
+          ? k
+          : escapeDefaultLiterals(k).replace(/\$\{/g, () => "$${"),
+        escapeDefaultLiterals(v),
+      ]),
     );
   }
   return value;
