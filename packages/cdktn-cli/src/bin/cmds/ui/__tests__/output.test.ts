@@ -60,8 +60,16 @@ describe("runOutput", () => {
       ...baseConfig,
       onOutputsRetrieved: (o) => (retrieved = o),
       outputsPath: "/tmp/out.json",
+      targetStacks: ["db"],
+      skipSynth: true,
+      skipProviderLock: false,
     });
 
+    expect(mockFetchOutputs).toHaveBeenCalledWith({
+      stackNames: ["db"],
+      skipSynth: true,
+      skipProviderLock: false,
+    });
     expect(retrieved).toBe(fetched);
     expect(logSpy.mock.calls.map(([line]) => stripAnsi(line))).toEqual([
       "db\n  host = db.example.com",

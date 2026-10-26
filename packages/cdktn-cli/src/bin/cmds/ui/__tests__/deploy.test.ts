@@ -204,28 +204,31 @@ describe("runDeploy outputs", () => {
 
   it("completes and prints the remaining outputs when terraform did not return a declared one", async () => {
     const warnSpy = jest.spyOn(logger, "warn").mockImplementation(() => {});
-    deployed(
-      getConstructIdsForOutputs(
-        "app",
-        {
-          "//": {
-            outputs: {
-              network: { ipv6: "ipv6_address", ipv4: "ipv4_address" },
-              db: { host: "db_host" },
+    try {
+      deployed(
+        getConstructIdsForOutputs(
+          "app",
+          {
+            "//": {
+              outputs: {
+                network: { ipv6: "ipv6_address", ipv4: "ipv4_address" },
+                db: { host: "db_host" },
+              },
             },
           },
-        },
-        { ipv6_address: output("::1"), db_host: output("db.example.com") },
-      ),
-    );
+          { ipv6_address: output("::1"), db_host: output("db.example.com") },
+        ),
+      );
 
-    await runDeploy(baseConfig as any);
+      await runDeploy(baseConfig as any);
 
-    expect(printed()).toEqual([
-      "network\n  ipv6 = ::1\ndb\n  host = db.example.com",
-    ]);
-    expect(errSpy).not.toHaveBeenCalled();
-    warnSpy.mockRestore();
+      expect(printed()).toEqual([
+        "network\n  ipv6 = ::1\ndb\n  host = db.example.com",
+      ]);
+      expect(errSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
