@@ -81,7 +81,7 @@ t.addComment(
 );
 
 // these are overwritten in terraform-functions.ts
-const INTERNAL_METHODS = ["join", "bcrypt", "range", "lookup"];
+const INTERNAL_METHODS = ["join", "bcrypt", "range", "lookup", "convert"];
 
 // functions that only exist in OpenTofu, derived from the availability
 // matrix; used to point their docstrings at the OpenTofu docs

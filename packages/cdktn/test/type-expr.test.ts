@@ -1,0 +1,215 @@
+// Copyright (c) HashiCorp, Inc
+// SPDX-License-Identifier: MPL-2.0
+import {
+  Testing,
+  TerraformStack,
+  TerraformOutput,
+  TerraformVariable,
+  Fn,
+  TypeExpr,
+} from "../src";
+
+/** Synthesizes `convert(var.input, <type>)` and returns the output's value. */
+function renderConvert(targetType: TypeExpr): string {
+  const app = Testing.app();
+  const stack = new TerraformStack(app, "test");
+  const input = new TerraformVariable(stack, "input", {});
+  new TerraformOutput(stack, "out", {
+    value: Fn.convert(input.value, targetType),
+  });
+  return JSON.parse(Testing.synth(stack)).output.out.value;
+}
+
+/** Synthesizes the type expression as a variable `type` and returns it. */
+function renderVariableType(targetType: TypeExpr): string {
+  const app = Testing.app();
+  const stack = new TerraformStack(app, "test");
+  new TerraformVariable(stack, "input", { type: targetType.toString() });
+  return JSON.parse(Testing.synth(stack)).variable.input.type;
+}
+
+describe("TypeExpr rendering", () => {
+  test.each([
+    ["STRING", TypeExpr.STRING, "string"],
+    ["NUMBER", TypeExpr.NUMBER, "number"],
+    ["BOOL", TypeExpr.BOOL, "bool"],
+    ["ANY", TypeExpr.ANY, "any"],
+    ["list", TypeExpr.list(TypeExpr.STRING), "list(string)"],
+    ["set", TypeExpr.set(TypeExpr.NUMBER), "set(number)"],
+    ["map", TypeExpr.map(TypeExpr.BOOL), "map(bool)"],
+    [
+      "tuple",
+      TypeExpr.tuple([TypeExpr.STRING, TypeExpr.NUMBER, TypeExpr.ANY]),
+      "tuple([string, number, any])",
+    ],
+    [
+      "object",
+      TypeExpr.object({ a: TypeExpr.STRING, "b-c": TypeExpr.NUMBER }),
+      "object({a = string, b-c = number})",
+    ],
+    [
+      "optional without default",
+      TypeExpr.object({ a: TypeExpr.optional(TypeExpr.STRING) }),
+      "object({a = optional(string)})",
+    ],
+    [
+      "optional with literal defaults",
+      TypeExpr.object({
+        n: TypeExpr.optional(TypeExpr.NUMBER, 1),
+        b: TypeExpr.optional(TypeExpr.BOOL, false),
+        s: TypeExpr.optional(TypeExpr.STRING, "x"),
+        l: TypeExpr.optional(TypeExpr.list(TypeExpr.STRING), ["a", "b"]),
+        m: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), {}),
+      }),
+      'object({n = optional(number, 1), b = optional(bool, false), s = optional(string, "x"), l = optional(list(string), ["a", "b"]), m = optional(map(string), {})})',
+    ],
+    [
+      "nested optional defaults",
+      TypeExpr.list(
+        TypeExpr.object({
+          a: TypeExpr.STRING,
+          inner: TypeExpr.optional(
+            TypeExpr.object({
+              x: TypeExpr.optional(TypeExpr.NUMBER, 2),
+              tags: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), {
+                env: "dev",
+              }),
+            }),
+            {},
+          ),
+        }),
+      ),
+      'list(object({a = string, inner = optional(object({x = optional(number, 2), tags = optional(map(string), {"env" = "dev"})}), {})}))',
+    ],
+    [
+      "fromString",
+      TypeExpr.fromString("map(list(number))"),
+      "map(list(number))",
+    ],
+  ])("%s inside Fn.convert", (_name, targetType, expected) => {
+    expect(renderConvert(targetType)).toBe(
+      `\${convert(var.input, ${expected})}`,
+    );
+  });
+
+  test("escapes string defaults containing ${", () => {
+    expect(
+      renderConvert(
+        TypeExpr.object({
+          c: TypeExpr.optional(TypeExpr.STRING, "d${x}"),
+        }),
+      ),
+    ).toBe('${convert(var.input, object({c = optional(string, "d$${x}")}))}');
+  });
+
+  test("passes pre-escaped double quotes in string defaults through, like other function arguments", () => {
+    expect(
+      renderConvert(
+        TypeExpr.object({ c: TypeExpr.optional(TypeExpr.STRING, 'a\\"b') }),
+      ),
+    ).toBe('${convert(var.input, object({c = optional(string, "a\\"b")}))}');
+  });
+
+  test("renders unquoted and without ${} as a variable type", () => {
+    expect(
+      renderVariableType(
+        TypeExpr.object({
+          a: TypeExpr.STRING,
+          b: TypeExpr.optional(TypeExpr.NUMBER, 1),
+        }),
+      ),
+    ).toBe("object({a = string, b = optional(number, 1)})");
+  });
+
+  test("rejects an optional() outside of object()", () => {
+    expect(() =>
+      renderVariableType(TypeExpr.optional(TypeExpr.STRING)),
+    ).toThrow("TypeExpr.optional() is only valid inside TypeExpr.object()");
+  });
+
+  test("rejects an optional() wrapping another optional()", () => {
+    expect(() => TypeExpr.optional(TypeExpr.optional(TypeExpr.STRING))).toThrow(
+      "TypeExpr.optional() cannot wrap another optional()",
+    );
+  });
+});
+
+describe("TypeExpr.object attribute names", () => {
+  test.each(["a", "_a", "a1", "a_b", "a-b", "A"])("accepts %s", (name) => {
+    expect(() => TypeExpr.object({ [name]: TypeExpr.STRING })).not.toThrow();
+  });
+
+  test.each(["", "1a", "-a", "a b", "a.b", 'a"', "a=b", "${a}"])(
+    "rejects %p",
+    (name) => {
+      expect(() => TypeExpr.object({ [name]: TypeExpr.STRING })).toThrow(
+        `TypeExpr.object(): "${name}" is not a valid attribute name`,
+      );
+    },
+  );
+});
+
+describe("Fn.convert", () => {
+  test("synthesizes the type as a bare type expression", () => {
+    const app = Testing.app();
+    const stack = new TerraformStack(app, "test");
+    const items = new TerraformVariable(stack, "items", {
+      type: TypeExpr.ANY.toString(),
+    });
+    const item = TypeExpr.object({
+      a: TypeExpr.STRING,
+      b: TypeExpr.optional(TypeExpr.NUMBER, 1),
+      tags: TypeExpr.optional(TypeExpr.map(TypeExpr.STRING), {}),
+    });
+    new TerraformOutput(stack, "items_out", {
+      value: Fn.convert(items.value, TypeExpr.list(item)),
+    });
+    new TerraformOutput(stack, "nested", {
+      value: Fn.lengthOf(
+        Fn.convert(items.value, TypeExpr.set(TypeExpr.STRING)),
+      ),
+    });
+    new TerraformOutput(stack, "literal", {
+      value: Fn.convert(
+        ["a", 1],
+        TypeExpr.tuple([TypeExpr.STRING, TypeExpr.STRING]),
+      ),
+    });
+
+    expect(Testing.synth(stack)).toMatchInlineSnapshot(`
+     "{
+       "output": {
+         "items_out": {
+           "value": "\${convert(var.items, list(object({a = string, b = optional(number, 1), tags = optional(map(string), {})})))}"
+         },
+         "literal": {
+           "value": "\${convert([\\"a\\", 1], tuple([string, string]))}"
+         },
+         "nested": {
+           "value": "\${length(convert(var.items, set(string)))}"
+         }
+       },
+       "variable": {
+         "items": {
+           "type": "any"
+         }
+       }
+     }"
+    `);
+  });
+
+  test("rejects a type that is not a TypeExpr", () => {
+    expect(() => Fn.convert("1", "number" as any)).toThrow(
+      "Fn.convert(): type must be a TypeExpr, e.g. TypeExpr.list(TypeExpr.STRING)",
+    );
+    expect(() => Fn.convert("1", undefined as any)).toThrow(
+      "Fn.convert(): type must be a TypeExpr",
+    );
+  });
+
+  test("rejects a top-level optional() type", () => {
+    expect(() => Fn.convert("1", TypeExpr.optional(TypeExpr.STRING))).toThrow(
+      "Fn.convert(): TypeExpr.optional() is only valid as an attribute type inside TypeExpr.object()",
+    );
+  });
+});

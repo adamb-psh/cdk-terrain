@@ -404,18 +404,6 @@ export const functionsMapGenerated = {
       },
     ],
   },
-  convert: {
-    name: "convert",
-    returnType: "dynamic",
-    parameters: [
-      {
-        type: "dynamic",
-      },
-      {
-        type: "dynamic",
-      },
-    ],
-  },
   csvdecode: {
     name: "csvdecode",
     returnType: "dynamic",

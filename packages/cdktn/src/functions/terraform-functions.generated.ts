@@ -408,11 +408,12 @@ export class FnGenerated {
     );
   }
   /**
+   * @internal
    * {@link https://developer.hashicorp.com/terraform/language/functions/convert convert} converts a value to the given type constraint.
    * @param {any} value
    * @param {any} type
    */
-  static convert(value: any, type: any) {
+  static _convert(value: any, type: any) {
     return asAny(
       terraformFunction("convert", [anyValue, anyValue])(value, type),
     );

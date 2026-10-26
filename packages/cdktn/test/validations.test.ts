@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc
 // SPDX-License-Identifier: MPL-2.0
 import * as child_process from "child_process";
-import { App, Fn, TerraformStack, Testing } from "../src";
+import { App, Fn, TerraformStack, Testing, TypeExpr } from "../src";
 
 import { Construct, IValidation } from "constructs";
 import { TestResource } from "./helper/resource";
@@ -482,7 +482,7 @@ describe("ValidateFunctionVersionSupport", () => {
   test("fails Fn.convert against the default baseline targets on both products", () => {
     const { app, testResource } = appWithStack();
     new TestResource(testResource, "usesConvert", {
-      name: Fn.convert(42, "string"),
+      name: Fn.convert(42, TypeExpr.STRING),
     });
 
     expect(() => app.synth()).toThrowErrorMatchingInlineSnapshot(`
@@ -500,7 +500,7 @@ describe("ValidateFunctionVersionSupport", () => {
       targetVersions: { terraform: ">=1.15.0", opentofu: ">=1.13.0" },
     });
     new TestResource(testResource, "usesConvert", {
-      name: Fn.convert(42, "string"),
+      name: Fn.convert(42, TypeExpr.STRING),
     });
 
     expect(() => app.synth()).not.toThrow();

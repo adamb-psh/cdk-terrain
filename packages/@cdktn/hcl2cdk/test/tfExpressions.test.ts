@@ -297,4 +297,21 @@ ITEM
       resources: [],
     },
   );
+
+  testCase.test(
+    "convert passes the type constraint through as a TypeExpr",
+    `
+      variable "items" {
+        type = any
+      }
+      output "items" {
+        value = convert(var.items, list(object({ a = string, b = optional(number, 1) })))
+      }`,
+    [],
+    Snapshot.yes,
+    Synth.yes,
+    {
+      resources: [],
+    },
+  );
 });

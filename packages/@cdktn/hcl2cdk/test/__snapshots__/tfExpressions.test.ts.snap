@@ -70,6 +70,39 @@ class MyConvertedCode extends TerraformStack {
 "
 `;
 
+exports[`tfExpressions convert passes the type constraint through as a TypeExpr snapshot typescript 1`] = `
+"import { Construct } from "constructs";
+import {
+  VariableType,
+  TerraformVariable,
+  TerraformOutput,
+  TypeExpr,
+  Fn,
+  TerraformStack,
+} from "cdktn";
+class MyConvertedCode extends TerraformStack {
+  constructor(scope: Construct, name: string) {
+    super(scope, name);
+    /*Terraform Variables are not always the best fit for getting inputs in the context of Terraform CDK.
+    You can read more about this at https://cdktn.io/docs/concepts/variables-and-outputs#input-variables*/
+    const items = new TerraformVariable(this, "items", {
+      type: VariableType.ANY,
+    });
+    const cdktnTerraformOutputItems = new TerraformOutput(this, "items_1", {
+      value: Fn.convert(
+        items.value,
+        TypeExpr.fromString(
+          "list(object({ a = string, b = optional(number, 1) }))"
+        )
+      ),
+    });
+    /*This allows the Terraform resource name to match the original name. You can remove the call if you don't need them to match.*/
+    cdktnTerraformOutputItems.overrideLogicalId("items");
+  }
+}
+"
+`;
+
 exports[`tfExpressions escaping dollar-curly in template strings works snapshot typescript 1`] = `
 "import { Construct } from "constructs";
 import { TerraformStack } from "cdktn";
