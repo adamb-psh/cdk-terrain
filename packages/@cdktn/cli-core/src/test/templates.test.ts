@@ -1,10 +1,14 @@
 // Copyright (c) HashiCorp, Inc
 // SPDX-License-Identifier: MPL-2.0
-import { readFileSync, readdirSync } from "fs-extra";
+import { existsSync, readFileSync, readdirSync } from "fs-extra";
 import * as path from "path";
 import { CODE_MARKER } from "@cdktn/hcl2cdk";
 
 const templatesDir = path.resolve(__dirname, "..", "..", "templates");
+// Variants such as typescript-pnpm carry no cdktf.json; they ship their base's files.
+const baseTemplates = readdirSync(templatesDir).filter((name) =>
+  existsSync(path.join(templatesDir, name, "cdktf.json")),
+);
 
 describe("Templates", () => {
   describe("Typescript", () => {
@@ -13,6 +17,25 @@ describe("Templates", () => {
         readFileSync(path.join(templatesDir, "typescript", "main.ts"), "utf8"),
       ).toContain(CODE_MARKER);
     });
+  });
+
+  // Every scaffolded project points coding agents at the docs MCP server; init writes the matching .mcp.json.
+  describe.each(baseTemplates)("%s", (template) => {
+    it("ships AGENTS.md pointing at the docs MCP server", () => {
+      expect(
+        readFileSync(path.join(templatesDir, template, "AGENTS.md"), "utf8"),
+      ).toContain("https://cdktn.io/docs/mcp");
+    });
+  });
+
+  // sscaff overwrites unconditionally, so a shipped .mcp.json would replace the user's before init can check for it.
+  it("no template ships an .mcp.json", () => {
+    const shipped = readdirSync(templatesDir).flatMap((template) =>
+      [".mcp.json", "{{}}.mcp.json"]
+        .map((file) => path.join(template, file))
+        .filter((file) => existsSync(path.join(templatesDir, file))),
+    );
+    expect(shipped).toEqual([]);
   });
 
   // The package-manager variants reuse the `typescript` files through template variables. A file duplicated into a
@@ -27,7 +50,7 @@ describe("Templates", () => {
       expect(shadowed).toEqual([]);
     });
 
-    it.each(["cdktf.json", "help", "package.json"])(
+    it.each(["AGENTS.md", "cdktf.json", "help", "package.json"])(
       "the base template's %s takes its package manager commands from variables",
       (file) => {
         const contents = readFileSync(
